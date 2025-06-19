@@ -14,7 +14,9 @@ class BackupManager:
         """Initialize the backup manager"""
         self.db_manager = database_manager
         self.logger = logger
-        self.backup_dir = 'backups'
+        # Ensure backup directory is always created in src directory
+        script_dir = os.path.dirname(os.path.abspath(__file__))
+        self.backup_dir = os.path.join(script_dir, 'backups')
         self.restore_codes = {}  # code -> {'backup_file', 'admin_username', 'created_at', 'used'}
         
         # Create backup directory if it doesn't exist

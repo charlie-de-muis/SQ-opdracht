@@ -14,7 +14,9 @@ class CryptoManager:
     
     def __init__(self):
         """Initialize the crypto manager"""
-        self.key_file = 'system.key'
+        # Ensure file is always created in src directory
+        script_dir = os.path.dirname(os.path.abspath(__file__))
+        self.key_file = os.path.join(script_dir, 'system.key')
         self._fernet = None
         self._initialize_encryption()
     

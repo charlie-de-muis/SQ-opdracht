@@ -13,7 +13,9 @@ class DatabaseManager:
         """Initialize the database manager"""
         self.crypto = crypto_manager
         self.logger = logger
-        self.db_file = 'urban_mobility.db'
+        # Ensure database file is always created in src directory
+        script_dir = os.path.dirname(os.path.abspath(__file__))
+        self.db_file = os.path.join(script_dir, 'urban_mobility.db')
         self.connection = None
         
     def _get_connection(self) -> sqlite3.Connection:

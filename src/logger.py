@@ -11,8 +11,9 @@ class SystemLogger:
     
     def __init__(self, crypto_manager):
         """Initialize the system logger"""
-        self.crypto = crypto_manager
-        self.log_file = 'system_logs.dat'
+        self.crypto = crypto_manager        # Ensure log file is always created in src directory
+        script_dir = os.path.dirname(os.path.abspath(__file__))
+        self.log_file = os.path.join(script_dir, 'system_logs.dat')
         self.lock = threading.Lock()
         self.log_counter = 0
         self._initialize_log_file()
