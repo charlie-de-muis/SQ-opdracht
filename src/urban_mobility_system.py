@@ -765,7 +765,8 @@ class UrbanMobilitySystem:
         
         self.ui.wait_for_enter()
     
-    # Placeholder methods for remaining functionality    def _update_user(self):
+    # User management implementation methods
+    def _update_user(self):
         """Update user information"""
         # Check permissions
         if not self.auth_manager.check_permission(self.user_role, 'update_user'):
