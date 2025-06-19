@@ -1,8 +1,4 @@
 #!/usr/bin/env python3
-"""
-Urban Mobility System - Main System Controller
-Handles authentication, authorization, and core system operations.
-"""
 
 import os
 import sys
@@ -621,7 +617,7 @@ class UrbanMobilitySystem:
             deleted_count = self.logger.clear_old_logs(90)
             self.ui.display_message(f"Deleted {deleted_count} old log entries.", "success")
         elif choice == '2':
-            self.ui.display_message("Database statistics - Feature under development", "info")
+            self._show_database_statistics()
         elif choice == '3':
             self.ui.display_message("Security status - All systems operational", "success")
         
@@ -769,40 +765,574 @@ class UrbanMobilitySystem:
         
         self.ui.wait_for_enter()
     
-    # Placeholder methods for remaining functionality
-    def _update_user(self):
+    # Placeholder methods for remaining functionality    def _update_user(self):
         """Update user information"""
-        self.ui.display_message("Update user - Feature under development", "info")
+        # Check permissions
+        if not self.auth_manager.check_permission(self.user_role, 'update_user'):
+            self.ui.display_message("You don't have permission to update users.", "error")
+            self.ui.wait_for_enter()
+            return
+        
+        # Get list of users first
+        if self.user_role == 'super_admin':
+            users = self.db_manager.get_users()
+        else:
+            users = self.db_manager.get_users('service_engineer')
+        
+        if not users:
+            self.ui.display_message("No users found to update.", "info")
+            self.ui.wait_for_enter()
+            return
+        
+        # Display users
+        self.ui.display_search_results("SELECT USER TO UPDATE", users, "user")
+        
+        username = self.ui.get_input("Enter username to update", required=True)
+        
+        # Find user
+        user_to_update = None
+        for user in users:
+            if user['username'].lower() == username.lower():
+                user_to_update = user
+                break
+        
+        if not user_to_update:
+            self.ui.display_message("User not found.", "error")
+            self.ui.wait_for_enter()
+            return
+        
+        # Get new information
+        fields = [
+            {'name': 'first_name', 'label': 'First Name', 'required': False},
+            {'name': 'last_name', 'label': 'Last Name', 'required': False}
+        ]
+        
+        print(f"\nCurrent information for {username}:")
+        print(f"First Name: {user_to_update['first_name']}")
+        print(f"Last Name: {user_to_update['last_name']}")
+        print("\nLeave fields empty to keep current values.")
+        
+        update_data = self.ui.display_form("UPDATE USER INFORMATION", fields)
+        
+        # Validate if provided
+        if update_data['first_name']:
+            valid, msg = self.validator.validate_name(update_data['first_name'], "First name")
+            if not valid:
+                self.ui.display_message(f"Invalid first name: {msg}", "error")
+                self.ui.wait_for_enter()
+                return
+        
+        if update_data['last_name']:
+            valid, msg = self.validator.validate_name(update_data['last_name'], "Last name")
+            if not valid:
+                self.ui.display_message(f"Invalid last name: {msg}", "error")
+                self.ui.wait_for_enter()
+                return
+        
+        # Update user in database
+        if self.db_manager.update_user_info(username, update_data):
+            self.ui.display_message(f"User '{username}' updated successfully.", "success")
+            self.logger.log_activity(
+                self.current_user,
+                "User updated",
+                f"Updated user information for: {username}"
+            )
+        else:
+            self.ui.display_message("Failed to update user.", "error")
+        
         self.ui.wait_for_enter()
     
     def _delete_user(self):
         """Delete user account"""
-        self.ui.display_message("Delete user - Feature under development", "info")
+        # Check permissions
+        if not self.auth_manager.check_permission(self.user_role, 'delete_user'):
+            self.ui.display_message("You don't have permission to delete users.", "error")
+            self.ui.wait_for_enter()
+            return
+        
+        # Get list of users
+        if self.user_role == 'super_admin':
+            users = self.db_manager.get_users()
+        else:
+            users = self.db_manager.get_users('service_engineer')
+        
+        if not users:
+            self.ui.display_message("No users found to delete.", "info")
+            self.ui.wait_for_enter()
+            return
+        
+        # Display users
+        self.ui.display_search_results("SELECT USER TO DELETE", users, "user")
+        
+        username = self.ui.get_input("Enter username to delete", required=True)
+        
+        # Prevent deletion of super_admin
+        if username.lower() == 'super_admin':
+            self.ui.display_message("Cannot delete super administrator account.", "error")
+            self.ui.wait_for_enter()
+            return
+        
+        # Prevent self-deletion by system admin
+        if username.lower() == self.current_user.lower() and self.user_role == 'system_admin':
+            # Allow but with extra confirmation
+            if not self.ui.display_confirmation("You are about to delete your own account. This will log you out immediately. Are you sure?"):
+                return
+        
+        # Find user to verify exists
+        user_exists = any(user['username'].lower() == username.lower() for user in users)
+        if not user_exists:
+            self.ui.display_message("User not found.", "error")
+            self.ui.wait_for_enter()
+            return
+        
+        # Confirm deletion
+        if self.ui.display_confirmation(f"Are you sure you want to delete user '{username}'? This cannot be undone."):
+            if self.db_manager.delete_user(username):
+                self.ui.display_message(f"User '{username}' deleted successfully.", "success")
+                self.logger.log_activity(
+                    self.current_user,
+                    "User deleted",
+                    f"Deleted user account: {username}"
+                )
+                
+                # If user deleted themselves, logout
+                if username.lower() == self.current_user.lower():
+                    self.ui.display_message("You have deleted your own account. Logging out...", "warning")
+                    self.ui.wait_for_enter()
+                    self._handle_logout()
+                    return
+            else:
+                self.ui.display_message("Failed to delete user.", "error")
+        
         self.ui.wait_for_enter()
     
     def _reset_user_password(self):
         """Reset user password"""
-        self.ui.display_message("Reset user password - Feature under development", "info")
+        # Check permissions
+        if not self.auth_manager.check_permission(self.user_role, 'reset_password'):
+            self.ui.display_message("You don't have permission to reset passwords.", "error")
+            self.ui.wait_for_enter()
+            return
+        
+        # Get list of users
+        if self.user_role == 'super_admin':
+            users = self.db_manager.get_users()
+        else:
+            users = self.db_manager.get_users('service_engineer')
+        
+        if not users:
+            self.ui.display_message("No users found.", "info")
+            self.ui.wait_for_enter()
+            return
+        
+        # Display users
+        self.ui.display_search_results("SELECT USER FOR PASSWORD RESET", users, "user")
+        
+        username = self.ui.get_input("Enter username for password reset", required=True)
+        
+        # Find user to verify exists
+        user_exists = any(user['username'].lower() == username.lower() for user in users)
+        if not user_exists:
+            self.ui.display_message("User not found.", "error")
+            self.ui.wait_for_enter()
+            return
+        
+        # Get new password
+        new_password = self.ui.get_input("Enter new temporary password", "password", required=True)
+        confirm_password = self.ui.get_input("Confirm new password", "password", required=True)
+        
+        if new_password != confirm_password:
+            self.ui.display_message("Passwords do not match.", "error")
+            self.ui.wait_for_enter()
+            return
+        
+        # Validate password
+        valid, msg = self.validator.validate_password(new_password)
+        if not valid:
+            self.ui.display_message(f"Invalid password: {msg}", "error")
+            self.ui.wait_for_enter()
+            return
+        
+        # Confirm reset
+        if self.ui.display_confirmation(f"Reset password for user '{username}'?"):
+            if self.db_manager.update_user_password(username, new_password):
+                self.ui.display_message(f"Password reset successfully for '{username}'.", "success")
+                print(f"Temporary password: {new_password}")
+                print("User should change this password on next login.")
+                
+                self.logger.log_activity(
+                    self.current_user,
+                    "Password reset",
+                    f"Reset password for user: {username}"
+                )
+            else:
+                self.ui.display_message("Failed to reset password.", "error")
+        
         self.ui.wait_for_enter()
-    
     def _update_traveller(self):
         """Update traveller information"""
-        self.ui.display_message("Update traveller - Feature under development", "info")
+        # Check permissions
+        if not self.auth_manager.check_permission(self.user_role, 'update_traveller'):
+            self.ui.display_message("You don't have permission to update travellers.", "error")
+            self.ui.wait_for_enter()
+            return
+        
+        # First search for the traveller
+        search_term = self.ui.get_input("Enter customer ID or name to find traveller", required=True)
+        
+        results = self.db_manager.search_travellers(search_term)
+        if not results:
+            self.ui.display_message("Traveller not found.", "error")
+            self.ui.wait_for_enter()
+            return
+        
+        # Show results and let user pick
+        if len(results) > 1:
+            self.ui.display_search_results("FOUND TRAVELLERS", results, "traveller")
+            customer_id = self.ui.get_input("Enter customer ID to update", required=True)
+            
+            # Find the specific traveller
+            traveller = None
+            for result in results:
+                if result['customer_id'] == customer_id:
+                    traveller = result
+                    break
+            
+            if not traveller:
+                self.ui.display_message("Invalid customer ID selected.", "error")
+                self.ui.wait_for_enter()
+                return
+        else:
+            traveller = results[0]
+        
+        # Show current information
+        print(f"\nCurrent traveller information:")
+        print(f"Customer ID: {traveller.get('customer_id')}")
+        print(f"Name: {traveller.get('first_name')} {traveller.get('last_name')}")
+        print(f"Email: {traveller.get('email_address')}")
+        print(f"Phone: +31-6-{traveller.get('mobile_phone')}")
+        
+        # Get updated information (allow empty to keep current)
+        fields = [
+            {'name': 'first_name', 'label': f"First Name (current: {traveller.get('first_name')})", 'required': False},
+            {'name': 'last_name', 'label': f"Last Name (current: {traveller.get('last_name')})", 'required': False},
+            {'name': 'email_address', 'label': f"Email (current: {traveller.get('email_address')})", 'required': False},
+            {'name': 'mobile_phone', 'label': f"Mobile Phone (current: {traveller.get('mobile_phone')})", 'required': False}
+        ]
+        
+        updated_data = self.ui.display_form("UPDATE TRAVELLER (leave empty to keep current)", fields)
+        
+        # Only update fields that have new values
+        update_fields = {}
+        for field, value in updated_data.items():
+            if value:  # Only if user entered something
+                update_fields[field] = value
+        
+        if not update_fields:
+            self.ui.display_message("No changes specified.", "info")
+            self.ui.wait_for_enter()
+            return
+        
+        # Validate new values
+        for field, value in update_fields.items():
+            if field in ['first_name', 'last_name']:
+                valid, msg = self.validator.validate_name(value, field.replace('_', ' ').title())
+            elif field == 'email_address':
+                valid, msg = self.validator.validate_email(value)
+            elif field == 'mobile_phone':
+                valid, msg = self.validator.validate_phone_number(value)
+            else:
+                valid, msg = True, "Valid"
+            
+            if not valid:
+                self.ui.display_message(f"Invalid {field}: {msg}", "error")
+                self.ui.wait_for_enter()
+                return
+        
+        # Update in database
+        if self.db_manager.update_traveller(traveller['customer_id'], update_fields):
+            self.ui.display_message("Traveller updated successfully.", "success")
+            self.logger.log_activity(
+                self.current_user,
+                "Traveller updated",
+                f"Updated traveller {traveller['customer_id']}: {', '.join(update_fields.keys())}"
+            )
+        else:
+            self.ui.display_message("Failed to update traveller.", "error")
+        
         self.ui.wait_for_enter()
     
     def _delete_traveller(self):
         """Delete traveller record"""
-        self.ui.display_message("Delete traveller - Feature under development", "info")
+        # Check permissions
+        if not self.auth_manager.check_permission(self.user_role, 'delete_traveller'):
+            self.ui.display_message("You don't have permission to delete travellers.", "error")
+            self.ui.wait_for_enter()
+            return
+        
+        # Search for traveller
+        search_term = self.ui.get_input("Enter customer ID or name to find traveller", required=True)
+        
+        results = self.db_manager.search_travellers(search_term)
+        if not results:
+            self.ui.display_message("Traveller not found.", "error")
+            self.ui.wait_for_enter()
+            return
+        
+        # Show results
+        self.ui.display_search_results("FOUND TRAVELLERS", results, "traveller")
+        
+        customer_id = self.ui.get_input("Enter customer ID to delete", required=True)
+        
+        # Find the specific traveller
+        traveller = None
+        for result in results:
+            if result['customer_id'] == customer_id:
+                traveller = result
+                break
+        
+        if not traveller:
+            self.ui.display_message("Invalid customer ID.", "error")
+            self.ui.wait_for_enter()
+            return
+        
+        # Confirmation
+        traveller_name = f"{traveller.get('first_name')} {traveller.get('last_name')}"
+        if not self.ui.display_confirmation(f"Are you sure you want to delete traveller {traveller_name} (ID: {customer_id})?"):
+            self.ui.display_message("Deletion cancelled.", "info")
+            self.ui.wait_for_enter()
+            return
+        
+        # Delete from database
+        if self.db_manager.delete_traveller(customer_id):
+            self.ui.display_message("Traveller deleted successfully.", "success")
+            self.logger.log_activity(
+                self.current_user,
+                "Traveller deleted",
+                f"Deleted traveller {customer_id}: {traveller_name}"
+            )
+        else:
+            self.ui.display_message("Failed to delete traveller.", "error")
+        
         self.ui.wait_for_enter()
-    
     def _update_scooter(self):
         """Update scooter information"""
-        self.ui.display_message("Update scooter - Feature under development", "info")
+        # Check permissions
+        if not self.auth_manager.check_permission(self.user_role, 'update_scooter'):
+            self.ui.display_message("You don't have permission to update scooters.", "error")
+            self.ui.wait_for_enter()
+            return
+        
+        # Search for scooter
+        search_term = self.ui.get_input("Enter serial number, brand, or model to find scooter", required=True)
+        
+        results = self.db_manager.search_scooters(search_term)
+        if not results:
+            self.ui.display_message("Scooter not found.", "error")
+            self.ui.wait_for_enter()
+            return
+        
+        # Show results and let user pick
+        if len(results) > 1:
+            self.ui.display_search_results("FOUND SCOOTERS", results, "scooter")
+            serial_number = self.ui.get_input("Enter serial number to update", required=True)
+            
+            # Find the specific scooter
+            scooter = None
+            for result in results:
+                if result['serial_number'] == serial_number:
+                    scooter = result
+                    break
+            
+            if not scooter:
+                self.ui.display_message("Invalid serial number selected.", "error")
+                self.ui.wait_for_enter()
+                return
+        else:
+            scooter = results[0]
+        
+        # Get permissions for this user role
+        permissions = self.auth_manager.get_scooter_update_permissions(self.user_role)
+        
+        # Show current information and available fields
+        print(f"\nCurrent scooter information:")
+        print(f"Serial: {scooter.get('serial_number')}")
+        print(f"Brand/Model: {scooter.get('brand')} {scooter.get('model')}")
+        print(f"Battery: {scooter.get('state_of_charge')}%")
+        print(f"Location: {scooter.get('latitude')}, {scooter.get('longitude')}")
+        print(f"Status: {'Out of Service' if scooter.get('out_of_service_status') else 'In Service'}")
+        
+        # Create fields list based on permissions
+        fields = []
+        if permissions.get('state_of_charge'):
+            fields.append({
+                'name': 'state_of_charge',
+                'label': f"Battery Charge % (current: {scooter.get('state_of_charge')})",
+                'required': False,
+                'help': '0-100'
+            })
+        
+        if permissions.get('latitude') and permissions.get('longitude'):
+            fields.extend([
+                {
+                    'name': 'latitude',
+                    'label': f"Latitude (current: {scooter.get('latitude')})",
+                    'required': False,
+                    'help': 'Rotterdam region: 51.8-52.0'
+                },
+                {
+                    'name': 'longitude', 
+                    'label': f"Longitude (current: {scooter.get('longitude')})",
+                    'required': False,
+                    'help': 'Rotterdam region: 4.3-4.6'
+                }
+            ])
+        
+        if permissions.get('out_of_service_status'):
+            current_status = 'Out of Service' if scooter.get('out_of_service_status') else 'In Service'
+            fields.append({
+                'name': 'out_of_service_status',
+                'label': f"Service Status (current: {current_status})",
+                'type': 'choice',
+                'choices': ['In Service', 'Out of Service'],
+                'required': False
+            })
+        
+        if permissions.get('mileage'):
+            fields.append({
+                'name': 'mileage',
+                'label': f"Mileage km (current: {scooter.get('mileage')})",
+                'required': False
+            })
+        
+        if permissions.get('last_maintenance_date'):
+            fields.append({
+                'name': 'last_maintenance_date',
+                'label': f"Last Maintenance (current: {scooter.get('last_maintenance_date')})",
+                'required': False,
+                'help': 'YYYY-MM-DD format'
+            })
+        
+        if not fields:
+            self.ui.display_message("You don't have permission to update any scooter fields.", "error")
+            self.ui.wait_for_enter()
+            return
+        
+        # Get updated information
+        updated_data = self.ui.display_form("UPDATE SCOOTER (leave empty to keep current)", fields)
+        
+        # Only update fields that have new values
+        update_fields = {}
+        for field, value in updated_data.items():
+            if value:  # Only if user entered something
+                if field == 'out_of_service_status':
+                    update_fields[field] = 1 if value == 'Out of Service' else 0
+                else:
+                    update_fields[field] = value
+        
+        if not update_fields:
+            self.ui.display_message("No changes specified.", "info")
+            self.ui.wait_for_enter()
+            return
+        
+        # Validate new values
+        for field, value in update_fields.items():
+            if field == 'state_of_charge':
+                valid, msg = self.validator.validate_percentage(str(value), "State of charge")
+            elif field in ['latitude', 'longitude']:
+                if field == 'latitude':
+                    lon_val = update_fields.get('longitude', scooter.get('longitude'))
+                    valid, msg = self.validator.validate_coordinates(str(value), str(lon_val))
+                elif field == 'longitude':
+                    lat_val = update_fields.get('latitude', scooter.get('latitude'))
+                    valid, msg = self.validator.validate_coordinates(str(lat_val), str(value))
+            elif field == 'mileage':
+                valid, msg = self.validator.validate_positive_number(str(value), "Mileage")
+            elif field == 'last_maintenance_date':
+                valid, msg = self.validator.validate_date(value, "Maintenance date")
+            else:
+                valid, msg = True, "Valid"
+            
+            if not valid:
+                self.ui.display_message(f"Invalid {field}: {msg}", "error")
+                self.ui.wait_for_enter()
+                return
+        
+        # Convert numeric values
+        try:
+            for field in ['state_of_charge', 'latitude', 'longitude', 'mileage']:
+                if field in update_fields:
+                    update_fields[field] = float(update_fields[field])
+        except ValueError:
+            self.ui.display_message("Invalid numeric values entered.", "error")
+            self.ui.wait_for_enter()
+            return
+        
+        # Update in database
+        if self.db_manager.update_scooter(scooter['serial_number'], update_fields):
+            self.ui.display_message("Scooter updated successfully.", "success")
+            self.logger.log_activity(
+                self.current_user,
+                "Scooter updated",
+                f"Updated scooter {scooter['serial_number']}: {', '.join(update_fields.keys())}"
+            )
+        else:
+            self.ui.display_message("Failed to update scooter.", "error")
+        
         self.ui.wait_for_enter()
     
     def _delete_scooter(self):
         """Delete scooter record"""
-        self.ui.display_message("Delete scooter - Feature under development", "info")
+        # Check permissions
+        if not self.auth_manager.check_permission(self.user_role, 'delete_scooter'):
+            self.ui.display_message("You don't have permission to delete scooters.", "error")
+            self.ui.wait_for_enter()
+            return
+        
+        # Search for scooter
+        search_term = self.ui.get_input("Enter serial number, brand, or model to find scooter", required=True)
+        
+        results = self.db_manager.search_scooters(search_term)
+        if not results:
+            self.ui.display_message("Scooter not found.", "error")
+            self.ui.wait_for_enter()
+            return
+        
+        # Show results
+        self.ui.display_search_results("FOUND SCOOTERS", results, "scooter")
+        
+        serial_number = self.ui.get_input("Enter serial number to delete", required=True)
+        
+        # Find the specific scooter
+        scooter = None
+        for result in results:
+            if result['serial_number'] == serial_number:
+                scooter = result
+                break
+        
+        if not scooter:
+            self.ui.display_message("Invalid serial number.", "error")
+            self.ui.wait_for_enter()
+            return
+        
+        # Confirmation
+        scooter_info = f"{scooter.get('brand')} {scooter.get('model')} (Serial: {serial_number})"
+        if not self.ui.display_confirmation(f"Are you sure you want to delete scooter {scooter_info}?"):
+            self.ui.display_message("Deletion cancelled.", "info")
+            self.ui.wait_for_enter()
+            return
+        
+        # Delete from database
+        if self.db_manager.delete_scooter(serial_number):
+            self.ui.display_message("Scooter deleted successfully.", "success")
+            self.logger.log_activity(
+                self.current_user,
+                "Scooter deleted",
+                f"Deleted scooter {serial_number}: {scooter_info}"
+            )
+        else:
+            self.ui.display_message("Failed to delete scooter.", "error")
+        
         self.ui.wait_for_enter()
     
     # Implementation methods for user management
@@ -1066,4 +1596,67 @@ class UrbanMobilitySystem:
         results = self.db_manager.search_scooters(search_term)
         
         self.ui.display_search_results(f"SCOOTER SEARCH RESULTS", results, "scooter")
+        self.ui.wait_for_enter()
+    
+    def _show_database_statistics(self):
+        """Show database statistics"""
+        try:
+            conn = self.db_manager._get_connection()
+            cursor = conn.cursor()
+            
+            # Get user count by role
+            cursor.execute("SELECT role, COUNT(*) FROM users WHERE is_active = 1 GROUP BY role")
+            user_stats = cursor.fetchall()
+            
+            # Get total traveller count
+            cursor.execute("SELECT COUNT(*) FROM travellers")
+            traveller_count = cursor.fetchone()[0]
+            
+            # Get total scooter count
+            cursor.execute("SELECT COUNT(*) FROM scooters")
+            scooter_count = cursor.fetchone()[0]
+            
+            # Get scooters by service status
+            cursor.execute("SELECT out_of_service_status, COUNT(*) FROM scooters GROUP BY out_of_service_status")
+            scooter_status = cursor.fetchall()
+            
+            # Get restore codes count
+            cursor.execute("SELECT is_used, COUNT(*) FROM restore_codes GROUP BY is_used")
+            restore_codes = cursor.fetchall()
+            
+            print(f"\n{'='*60}")
+            print("    DATABASE STATISTICS")
+            print(f"{'='*60}")
+            
+            print("\nUser Statistics:")
+            for role, count in user_stats:
+                print(f"  {role.replace('_', ' ').title()}: {count}")
+            
+            print(f"\nData Statistics:")
+            print(f"  Total Travellers: {traveller_count}")
+            print(f"  Total Scooters: {scooter_count}")
+            
+            print(f"\nScooter Status:")
+            for status, count in scooter_status:
+                status_text = "Out of Service" if status else "In Service"
+                print(f"  {status_text}: {count}")
+            
+            print(f"\nRestore Codes:")
+            for used, count in restore_codes:
+                status_text = "Used" if used else "Active"
+                print(f"  {status_text}: {count}")
+            
+            # Get log statistics
+            logs = self.logger.get_logs()
+            suspicious_logs = [log for log in logs if log.get('suspicious', False)]
+            
+            print(f"\nLog Statistics:")
+            print(f"  Total Log Entries: {len(logs)}")
+            print(f"  Suspicious Activities: {len(suspicious_logs)}")
+            
+            print(f"\n{'='*60}")
+            
+        except Exception as e:
+            self.ui.display_message(f"Failed to retrieve database statistics: {e}", "error")
+        
         self.ui.wait_for_enter()

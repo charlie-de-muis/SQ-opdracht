@@ -1,8 +1,4 @@
 #!/usr/bin/env python3
-"""
-System Logger for Urban Mobility System
-Handles secure logging of all system activities with encryption.
-"""
 
 import os
 import json

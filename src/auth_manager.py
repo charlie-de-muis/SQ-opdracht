@@ -1,8 +1,4 @@
 #!/usr/bin/env python3
-"""
-Authentication Manager for Urban Mobility System
-Handles user authentication and authorization with security features.
-"""
 
 import time
 from typing import Optional, Dict, Any

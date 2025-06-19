@@ -1,8 +1,4 @@
 #!/usr/bin/env python3
-"""
-Test script for Urban Mobility Backend System
-Quick validation of core functionality
-"""
 
 import os
 import sys

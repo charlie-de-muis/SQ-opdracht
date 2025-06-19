@@ -1,8 +1,4 @@
 #!/usr/bin/env python3
-"""
-User Interface for Urban Mobility System
-Provides console-based user interface with clear navigation.
-"""
 
 import os
 from typing import List, Dict, Any, Optional

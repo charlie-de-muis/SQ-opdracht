@@ -1,8 +1,4 @@
 #!/usr/bin/env python3
-"""
-Input Validator for Urban Mobility System
-Provides comprehensive input validation using whitelisting approach.
-"""
 
 import re
 from typing import Optional, List, Tuple

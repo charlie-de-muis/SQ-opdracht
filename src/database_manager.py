@@ -1,8 +1,4 @@
 #!/usr/bin/env python3
-"""
-Database Manager for Urban Mobility System
-Handles all database operations with encryption and SQL injection protection.
-"""
 
 import sqlite3
 import os
@@ -516,6 +512,50 @@ class DatabaseManager:
         except Exception as e:
             self.logger.log_activity("SYSTEM", "Scooter search failed", str(e), suspicious=True)
             return []
+    
+    def update_user_info(self, username: str, update_data: Dict[str, str]) -> bool:
+        """Update user information (first name, last name)"""
+        conn = self._get_connection()
+        cursor = conn.cursor()
+        
+        try:
+            # Build update query dynamically based on provided data
+            updates = []
+            params = []
+            
+            if update_data.get('first_name'):
+                updates.append("first_name = ?")
+                params.append(self.crypto.encrypt(update_data['first_name']))
+            
+            if update_data.get('last_name'):
+                updates.append("last_name = ?")
+                params.append(self.crypto.encrypt(update_data['last_name']))
+            
+            if not updates:
+                return True  # Nothing to update
+            
+            updates.append("updated_at = CURRENT_TIMESTAMP")
+            params.append(username)
+            
+            query = f'''
+                UPDATE users 
+                SET {', '.join(updates)}
+                WHERE username = ? AND username != 'super_admin'
+            '''
+            
+            cursor.execute(query, params)
+            
+            if cursor.rowcount > 0:
+                conn.commit()
+                self.logger.log_activity(username, "User info updated", f"User information updated for: {username}")
+                return True
+            else:
+                return False
+            
+        except Exception as e:
+            conn.rollback()
+            self.logger.log_activity("SYSTEM", "User info update failed", str(e), suspicious=True)
+            return False
     
     def close_connection(self):
         """Close database connection"""

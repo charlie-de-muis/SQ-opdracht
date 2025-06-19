@@ -1,11 +1,4 @@
 #!/usr/bin/env python3
-"""
-Urban Mobility Backend System
-Main entry point for the secure backend system.
-
-Authors: [Student Name(s) and Number(s)]
-Course: ANALYSIS 8: SOFTWARE QUALITY (INFSWQ01-A | INFSWQ21-A)
-"""
 
 import sys
 import os

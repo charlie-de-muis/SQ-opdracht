@@ -1,9 +1,4 @@
 #!/usr/bin/env python3
-"""
-Cryptography Manager for Urban Mobility System
-Handles encryption, decryption, and key management for sensitive data.
-Uses only standard library modules as per assignment requirements.
-"""
 
 import os
 import base64

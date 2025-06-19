@@ -1,8 +1,4 @@
 #!/usr/bin/env python3
-"""
-Backup Manager for Urban Mobility System
-Handles system backup and restore operations with security features.
-"""
 
 import os
 import shutil
