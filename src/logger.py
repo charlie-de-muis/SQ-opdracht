@@ -6,12 +6,10 @@ import threading
 from datetime import datetime
 from typing import Optional, List, Dict, Any
 
-class SystemLogger:
-    """Handles all system logging with encryption"""
-    
+class SystemLogger:   
     def __init__(self, crypto_manager):
-        """Initialize the system logger"""
-        self.crypto = crypto_manager        # Ensure log file is always created in src directory
+        self.crypto = crypto_manager
+
         script_dir = os.path.dirname(os.path.abspath(__file__))
         self.log_file = os.path.join(script_dir, 'system_logs.dat')
         self.lock = threading.Lock()
@@ -19,9 +17,7 @@ class SystemLogger:
         self._initialize_log_file()
     
     def _initialize_log_file(self):
-        """Initialize the encrypted log file"""
         if not os.path.exists(self.log_file):
-            # Create empty encrypted log file
             empty_logs = []
             self._write_logs(empty_logs)
         
@@ -31,7 +27,6 @@ class SystemLogger:
             self.log_counter = max(log.get('id', 0) for log in logs)
     
     def _read_logs(self) -> List[Dict[str, Any]]:
-        """Read and decrypt all logs"""
         try:
             if not os.path.exists(self.log_file):
                 return []
@@ -45,7 +40,6 @@ class SystemLogger:
             # Decrypt the log content
             decrypted_content = self.crypto.decrypt(encrypted_content)
             
-            # Parse JSON
             logs = json.loads(decrypted_content)
             return logs if isinstance(logs, list) else []
         
@@ -54,7 +48,6 @@ class SystemLogger:
             return []
     
     def _write_logs(self, logs: List[Dict[str, Any]]):
-        """Encrypt and write all logs"""
         try:
             # Convert logs to JSON
             json_content = json.dumps(logs, indent=2, default=str)
@@ -70,10 +63,8 @@ class SystemLogger:
             print(f"Warning: Could not write to log file: {e}")
     
     def log_activity(self, username: str, activity: str, details: str = "", suspicious: bool = False):
-        """Log a system activity"""
         with self.lock:
             try:
-                # Read existing logs
                 logs = self._read_logs()
                 
                 # Create new log entry
@@ -87,30 +78,25 @@ class SystemLogger:
                     'activity': activity,
                     'details': details,
                     'suspicious': suspicious,
-                    'read': False  # For tracking unread suspicious activities
+                    'read': False  
                 }
                 
-                # Add to logs
                 logs.append(log_entry)
-                
-                # Keep only last 1000 log entries to prevent file from growing too large
                 if len(logs) > 1000:
                     logs = logs[-1000:]
                 
-                # Write back to file
                 self._write_logs(logs)
                 
             except Exception as e:
                 print(f"Warning: Could not log activity: {e}")
     
     def get_logs(self, limit: Optional[int] = None, suspicious_only: bool = False) -> List[Dict[str, Any]]:
-        """Get system logs"""
         logs = self._read_logs()
         
         if suspicious_only:
             logs = [log for log in logs if log.get('suspicious', False)]
-        
-        # Sort by timestamp (newest first)
+
+        # sort by time
         logs.sort(key=lambda x: x.get('timestamp', ''), reverse=True)
         
         if limit:
@@ -119,30 +105,25 @@ class SystemLogger:
         return logs
     
     def get_unread_suspicious_count(self) -> int:
-        """Get count of unread suspicious activities"""
         logs = self._read_logs()
         count = sum(1 for log in logs if log.get('suspicious', False) and not log.get('read', True))
         return count
     
     def mark_suspicious_as_read(self):
-        """Mark all suspicious activities as read"""
         with self.lock:
             try:
                 logs = self._read_logs()
-                
-                # Mark suspicious logs as read
+            
                 for log in logs:
                     if log.get('suspicious', False):
                         log['read'] = True
-                
-                # Write back to file
+            
                 self._write_logs(logs)
                 
             except Exception as e:
                 print(f"Warning: Could not mark logs as read: {e}")
     
     def search_logs(self, search_term: str) -> List[Dict[str, Any]]:
-        """Search logs for a specific term"""
         logs = self._read_logs()
         search_term = search_term.lower()
         
@@ -154,23 +135,21 @@ class SystemLogger:
                 search_term in log.get('details', '').lower()):
                 matching_logs.append(log)
         
-        # Sort by timestamp (newest first)
+        # Sort by time
         matching_logs.sort(key=lambda x: x.get('timestamp', ''), reverse=True)
         
         return matching_logs
     
     def get_logs_by_user(self, username: str) -> List[Dict[str, Any]]:
-        """Get all logs for a specific user"""
         logs = self._read_logs()
         user_logs = [log for log in logs if log.get('username', '').lower() == username.lower()]
         
-        # Sort by timestamp (newest first)
+        # Sort by time
         user_logs.sort(key=lambda x: x.get('timestamp', ''), reverse=True)
         
         return user_logs
     
     def get_logs_by_date_range(self, start_date: str, end_date: str) -> List[Dict[str, Any]]:
-        """Get logs within a date range (YYYY-MM-DD format)"""
         logs = self._read_logs()
         
         try:
@@ -185,8 +164,7 @@ class SystemLogger:
                         filtered_logs.append(log)
                 except:
                     continue
-            
-            # Sort by timestamp (newest first)
+        
             filtered_logs.sort(key=lambda x: x.get('timestamp', ''), reverse=True)
             
             return filtered_logs
@@ -195,13 +173,11 @@ class SystemLogger:
             return []
     
     def clear_old_logs(self, days_to_keep: int = 90):
-        """Clear logs older than specified number of days"""
         with self.lock:
             try:
                 logs = self._read_logs()
                 cutoff_date = datetime.now().timestamp() - (days_to_keep * 24 * 60 * 60)
                 
-                # Filter logs to keep only recent ones
                 filtered_logs = []
                 for log in logs:
                     try:
@@ -209,10 +185,8 @@ class SystemLogger:
                         if log_dt.timestamp() >= cutoff_date:
                             filtered_logs.append(log)
                     except:
-                        # Keep logs with invalid timestamps
                         filtered_logs.append(log)
                 
-                # Write back filtered logs
                 self._write_logs(filtered_logs)
                 
                 return len(logs) - len(filtered_logs)  # Return number of logs deleted
@@ -222,7 +196,6 @@ class SystemLogger:
                 return 0
     
     def export_logs(self, filename: str, suspicious_only: bool = False) -> bool:
-        """Export logs to a readable format (for debugging)"""
         try:
             logs = self.get_logs(suspicious_only=suspicious_only)
             

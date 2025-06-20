@@ -3,19 +3,14 @@
 import os
 from typing import List, Dict, Any, Optional
 
-class UserInterface:
-    """Handles user interface display and input"""
-    
+class UserInterface:   
     def __init__(self):
-        """Initialize the user interface"""
         self.screen_width = 80
         
     def clear_screen(self):
-        """Clear the console screen"""
         os.system('cls' if os.name == 'nt' else 'clear')
     
     def display_welcome(self):
-        """Display welcome screen"""
         self.clear_screen()
         print("=" * self.screen_width)
         print(" " * 20 + "URBAN MOBILITY BACKEND SYSTEM")
@@ -33,7 +28,6 @@ class UserInterface:
         print("=" * self.screen_width)
     
     def display_menu(self, title: str, options: List[str], user_info: Optional[str] = None) -> str:
-        """Display a menu and get user choice"""
         print(f"\n{'='*self.screen_width}")
         print(f"    {title}")
         if user_info:
@@ -48,7 +42,6 @@ class UserInterface:
         return choice
     
     def display_table(self, title: str, headers: List[str], rows: List[List[str]], max_width: int = 15):
-        """Display data in table format"""
         print(f"\n{title}")
         print("=" * len(title))
         
@@ -56,7 +49,6 @@ class UserInterface:
             print("No data to display.")
             return
         
-        # Calculate column widths
         col_widths = []
         for i, header in enumerate(headers):
             max_len = len(header)
@@ -64,13 +56,11 @@ class UserInterface:
                 if i < len(row):
                     max_len = max(max_len, len(str(row[i])))
             col_widths.append(min(max_len, max_width))
-        
-        # Print header
+
         header_row = " | ".join(header.ljust(col_widths[i]) for i, header in enumerate(headers))
         print(header_row)
         print("-" * len(header_row))
-        
-        # Print rows
+
         for row in rows:
             formatted_row = []
             for i, cell in enumerate(row):
@@ -82,7 +72,6 @@ class UserInterface:
             print(" | ".join(formatted_row))
     
     def display_form(self, title: str, fields: List[Dict[str, str]]) -> Dict[str, str]:
-        """Display a form and collect input"""
         print(f"\n{'='*self.screen_width}")
         print(f"    {title}")
         print(f"{'='*self.screen_width}")
@@ -132,7 +121,6 @@ class UserInterface:
         return form_data
     
     def display_confirmation(self, message: str) -> bool:
-        """Display confirmation dialog"""
         while True:
             response = input(f"\n{message} (y/n): ").strip().lower()
             if response in ['y', 'yes']:
@@ -143,7 +131,6 @@ class UserInterface:
                 print("Please enter 'y' for yes or 'n' for no.")
     
     def display_message(self, message: str, message_type: str = "info"):
-        """Display a message with appropriate formatting"""
         if message_type == "success":
             print(f"\n✓ SUCCESS: {message}")
         elif message_type == "error":
@@ -156,7 +143,6 @@ class UserInterface:
             print(f"\n{message}")
     
     def display_logs(self, logs: List[Dict[str, Any]], show_suspicious_only: bool = False):
-        """Display system logs in formatted view"""
         if show_suspicious_only:
             title = "SUSPICIOUS ACTIVITIES LOG"
             logs = [log for log in logs if log.get('suspicious', False)]
@@ -186,7 +172,6 @@ class UserInterface:
             print(f"\n... and {len(logs) - 50} more entries")
     
     def display_search_results(self, title: str, results: List[Dict[str, Any]], result_type: str):
-        """Display search results"""
         print(f"\n{'='*self.screen_width}")
         print(f"    {title}")
         print(f"    Found {len(results)} results")
@@ -221,7 +206,6 @@ class UserInterface:
                 print(f"   Registered: {user.get('registration_date', 'N/A')}")
     
     def get_input(self, prompt: str, input_type: str = "text", required: bool = True) -> str:
-        """Get validated input from user"""
         while True:
             if input_type == "password":
                 import getpass
@@ -236,11 +220,9 @@ class UserInterface:
             return value
     
     def display_progress(self, message: str):
-        """Display progress message"""
         print(f"\n⏳ {message}...")
     
     def display_backup_list(self, backups: List[Dict[str, Any]]):
-        """Display list of available backups"""
         print(f"\n{'='*self.screen_width}")
         print("    AVAILABLE BACKUPS")
         print(f"{'='*self.screen_width}")
@@ -257,7 +239,6 @@ class UserInterface:
             print(f"   Size: {size_mb:.2f} MB")
     
     def display_restore_codes(self, codes: List[Dict[str, Any]]):
-        """Display list of restore codes"""
         print(f"\n{'='*self.screen_width}")
         print("    RESTORE CODES")
         print(f"{'='*self.screen_width}")
@@ -277,11 +258,9 @@ class UserInterface:
                 print(f"   Used: {code['used_at']}")
     
     def wait_for_enter(self, message: str = "Press Enter to continue..."):
-        """Wait for user to press Enter"""
         input(f"\n{message}")
     
     def display_error_details(self, error_message: str, suggestions: List[str] = None):
-        """Display detailed error information"""
         print(f"\n{'='*self.screen_width}")
         print("    ERROR DETAILS")
         print(f"{'='*self.screen_width}")
@@ -295,7 +274,6 @@ class UserInterface:
         print(f"\n{'='*self.screen_width}")
     
     def display_help(self, topic: str):
-        """Display help information"""
         help_content = {
             "navigation": [
                 "Use menu numbers or letters to navigate",

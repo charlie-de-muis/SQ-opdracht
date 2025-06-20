@@ -7,45 +7,37 @@ import json
 from datetime import datetime
 from typing import List, Dict, Any, Optional
 
-class BackupManager:
-    """Manages system backup and restore operations"""
-    
+class BackupManager:   
     def __init__(self, database_manager, logger):
-        """Initialize the backup manager"""
         self.db_manager = database_manager
         self.logger = logger
-        # Ensure backup directory is always created in src directory
+        # check is backup dir exists
         script_dir = os.path.dirname(os.path.abspath(__file__))
         self.backup_dir = os.path.join(script_dir, 'backups')
-        self.restore_codes = {}  # code -> {'backup_file', 'admin_username', 'created_at', 'used'}
+        self.restore_codes = {}  
         
-        # Create backup directory if it doesn't exist
+        # Create backup dir if it doesn't exist
         if not os.path.exists(self.backup_dir):
             os.makedirs(self.backup_dir)
     
     def create_backup(self, created_by: str) -> Optional[str]:
-        """Create a system backup"""
         try:
-            # Generate backup filename with timestamp
+            # Generate backup filename with time
             timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
             backup_filename = f"urban_mobility_backup_{timestamp}.zip"
             backup_path = os.path.join(self.backup_dir, backup_filename)
             
             # Create backup zip file
             with zipfile.ZipFile(backup_path, 'w', zipfile.ZIP_DEFLATED) as zipf:
-                # Add database file
                 if os.path.exists(self.db_manager.db_file):
                     zipf.write(self.db_manager.db_file, 'urban_mobility.db')
-                
-                # Add system key file
+
                 if os.path.exists('system.key'):
                     zipf.write('system.key', 'system.key')
                 
-                # Add log file
                 if os.path.exists('system_logs.dat'):
                     zipf.write('system_logs.dat', 'system_logs.dat')
                 
-                # Add backup metadata
                 backup_metadata = {
                     'created_by': created_by,
                     'created_at': datetime.now().isoformat(),
@@ -55,7 +47,6 @@ class BackupManager:
                 
                 zipf.writestr('backup_metadata.json', json.dumps(backup_metadata, indent=2))
             
-            # Log successful backup
             self.logger.log_activity(
                 created_by,
                 "Backup created",
@@ -74,7 +65,6 @@ class BackupManager:
             return None
     
     def restore_backup(self, backup_filename: str, restored_by: str) -> bool:
-        """Restore system from backup (Super Admin only)"""
         try:
             backup_path = os.path.join(self.backup_dir, backup_filename)
             
@@ -87,12 +77,10 @@ class BackupManager:
                 )
                 return False
             
-            # Create backup of current state before restore
             current_backup = self.create_backup(f"AUTO_BACKUP_BEFORE_RESTORE_{restored_by}")
             
-            # Extract backup
+            # get backup
             with zipfile.ZipFile(backup_path, 'r') as zipf:
-                # Verify backup integrity
                 if not self._verify_backup_integrity(zipf):
                     self.logger.log_activity(
                         restored_by,
@@ -102,25 +90,17 @@ class BackupManager:
                     )
                     return False
                 
-                # Close current database connection
                 self.db_manager.close_connection()
-                
-                # Restore database
                 if 'urban_mobility.db' in zipf.namelist():
                     zipf.extract('urban_mobility.db', '.')
-                
-                # Restore system key
                 if 'system.key' in zipf.namelist():
                     zipf.extract('system.key', '.')
-                
-                # Restore logs
                 if 'system_logs.dat' in zipf.namelist():
                     zipf.extract('system_logs.dat', '.')
             
-            # Reinitialize database connection
+            # Restart database connection
             self.db_manager._get_connection()
             
-            # Log successful restore
             self.logger.log_activity(
                 restored_by,
                 "System restored",
@@ -139,9 +119,7 @@ class BackupManager:
             return False
     
     def restore_with_code(self, restore_code: str, restored_by: str) -> bool:
-        """Restore system using a one-time restore code"""
         try:
-            # Check if restore code exists and is valid
             conn = self.db_manager._get_connection()
             cursor = conn.cursor()
             
@@ -162,7 +140,6 @@ class BackupManager:
                 )
                 return False
             
-            # Verify the restore code is for this admin
             if code_info['system_admin_username'] != restored_by:
                 self.logger.log_activity(
                     restored_by,
@@ -172,7 +149,6 @@ class BackupManager:
                 )
                 return False
             
-            # Mark code as used
             cursor.execute('''
                 UPDATE restore_codes
                 SET is_used = 1, used_at = ?
@@ -180,8 +156,7 @@ class BackupManager:
             ''', (datetime.now().isoformat(), restore_code))
             
             conn.commit()
-            
-            # Perform restore
+
             backup_filename = code_info['backup_filename']
             success = self.restore_backup(backup_filename, restored_by)
             
@@ -192,7 +167,6 @@ class BackupManager:
                     f"System restored using restore code. Backup: {backup_filename}"
                 )
             else:
-                # If restore failed, mark code as unused again
                 cursor.execute('''
                     UPDATE restore_codes
                     SET is_used = 0, used_at = NULL
@@ -212,18 +186,14 @@ class BackupManager:
             return False
     
     def generate_restore_code(self, backup_filename: str, admin_username: str, created_by: str) -> Optional[str]:
-        """Generate a one-time restore code for a specific backup and admin"""
         try:
-            # Verify backup exists
             backup_path = os.path.join(self.backup_dir, backup_filename)
             if not os.path.exists(backup_path):
                 return None
             
-            # Generate unique restore code
             import secrets
             restore_code = secrets.token_urlsafe(16)
-            
-            # Store in database
+
             conn = self.db_manager._get_connection()
             cursor = conn.cursor()
             
@@ -234,7 +204,6 @@ class BackupManager:
             
             conn.commit()
             
-            # Log code generation
             self.logger.log_activity(
                 created_by,
                 "Restore code generated",
@@ -253,12 +222,10 @@ class BackupManager:
             return None
     
     def revoke_restore_code(self, restore_code: str, revoked_by: str) -> bool:
-        """Revoke a restore code"""
         try:
             conn = self.db_manager._get_connection()
             cursor = conn.cursor()
             
-            # Check if code exists and is not used
             cursor.execute('''
                 SELECT system_admin_username, backup_filename, is_used
                 FROM restore_codes
@@ -271,9 +238,8 @@ class BackupManager:
                 return False
             
             if code_info['is_used']:
-                return False  # Cannot revoke used code
+                return False  
             
-            # Mark as used (effectively revoking it)
             cursor.execute('''
                 UPDATE restore_codes
                 SET is_used = 1, used_at = ?
@@ -282,7 +248,6 @@ class BackupManager:
             
             conn.commit()
             
-            # Log revocation
             self.logger.log_activity(
                 revoked_by,
                 "Restore code revoked",
@@ -301,7 +266,6 @@ class BackupManager:
             return False
     
     def list_backups(self) -> List[Dict[str, Any]]:
-        """List all available backups"""
         backups = []
         
         try:
@@ -318,7 +282,6 @@ class BackupManager:
                         file_size = stats.st_size
                         created_time = datetime.fromtimestamp(stats.st_mtime)
                         
-                        # Try to read metadata from backup
                         metadata = self._read_backup_metadata(backup_path)
                         
                         backups.append({
@@ -330,7 +293,6 @@ class BackupManager:
                         })
                         
                     except Exception:
-                        # If can't read metadata, just include basic info
                         backups.append({
                             'filename': filename,
                             'size': file_size,
@@ -339,7 +301,7 @@ class BackupManager:
                             'metadata': {}
                         })
             
-            # Sort by creation time (newest first)
+            # Sort by time
             backups.sort(key=lambda x: x['created_at'], reverse=True)
             
         except Exception as e:
@@ -355,7 +317,7 @@ class BackupManager:
     def _verify_backup_integrity(self, zipf: zipfile.ZipFile) -> bool:
         """Verify backup file integrity"""
         try:
-            # Check if required files are present
+            # Check if files are present
             required_files = ['urban_mobility.db', 'backup_metadata.json']
             namelist = zipf.namelist()
             
@@ -363,11 +325,9 @@ class BackupManager:
                 if required_file not in namelist:
                     return False
             
-            # Try to read metadata
             metadata_content = zipf.read('backup_metadata.json')
             metadata = json.loads(metadata_content)
-            
-            # Verify metadata structure
+
             required_metadata = ['created_by', 'created_at', 'backup_version']
             for field in required_metadata:
                 if field not in metadata:
@@ -379,7 +339,6 @@ class BackupManager:
             return False
     
     def _read_backup_metadata(self, backup_path: str) -> Dict[str, Any]:
-        """Read metadata from backup file"""
         try:
             with zipfile.ZipFile(backup_path, 'r') as zipf:
                 if 'backup_metadata.json' in zipf.namelist():
@@ -391,7 +350,6 @@ class BackupManager:
         return {}
     
     def get_restore_codes(self, admin_username: Optional[str] = None) -> List[Dict[str, Any]]:
-        """Get list of restore codes"""
         try:
             conn = self.db_manager._get_connection()
             cursor = conn.cursor()

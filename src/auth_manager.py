@@ -5,21 +5,18 @@ from typing import Optional, Dict, Any
 from datetime import datetime, timedelta
 
 class AuthManager:
-    """Manages authentication and authorization"""
+    # Manages authentication and authorization of the user
     
     def __init__(self, database_manager, logger):
-        """Initialize the authentication manager"""
         self.db_manager = database_manager
         self.logger = logger
         
         # Track failed login attempts
-        self.failed_attempts = {}  # username -> {'count': int, 'last_attempt': datetime}
+        self.failed_attempts = {}  
         self.max_failed_attempts = 3
-        self.lockout_duration = 300  # 5 minutes in seconds
+        self.lockout_duration = 300  # 5 minutes
     
     def authenticate_user(self, username: str, password: str) -> Optional[Dict[str, Any]]:
-        """Authenticate user with rate limiting and logging"""
-        
         # Check if user is locked out
         if self._is_user_locked_out(username):
             self.logger.log_activity(
@@ -29,22 +26,18 @@ class AuthManager:
                 suspicious=True
             )
             return None
-        
-        # Attempt authentication
+
         user_info = self.db_manager.authenticate_user(username, password)
         
         if user_info:
-            # Successful login - clear failed attempts
-            if username in self.failed_attempts:
+            if username in self.failed_attempts: # clear failed attempts if login has succeeded
                 del self.failed_attempts[username]
             
             self.logger.log_activity(username, "Successful login", "User authenticated successfully")
             return user_info
         else:
-            # Failed login - track attempt
             self._record_failed_attempt(username)
             
-            # Log with appropriate suspicion level
             failed_count = self.failed_attempts.get(username, {}).get('count', 0)
             suspicious = failed_count >= 2
             
@@ -52,13 +45,12 @@ class AuthManager:
                 username,
                 "Failed login",
                 f"Authentication failed for user: {username} (Attempt {failed_count})",
-                suspicious=suspicious
+                suspicious=suspicious # add suspicion level
             )
             
             return None
     
     def _is_user_locked_out(self, username: str) -> bool:
-        """Check if user is currently locked out"""
         if username not in self.failed_attempts:
             return False
         
@@ -72,34 +64,28 @@ class AuthManager:
         lockout_end = attempt_info['last_attempt'] + timedelta(seconds=self.lockout_duration)
         
         if datetime.now() >= lockout_end:
-            # Lockout period has expired - clear failed attempts
             del self.failed_attempts[username]
             return False
         
         return True
     
     def _record_failed_attempt(self, username: str):
-        """Record a failed login attempt"""
         now = datetime.now()
         
         if username in self.failed_attempts:
-            # Check if this is a new attempt sequence (more than 1 hour since last attempt)
+            # Check if this is a new attempt 
             last_attempt = self.failed_attempts[username]['last_attempt']
             if now - last_attempt > timedelta(hours=1):
-                # Reset counter for new sequence
+                # Reset counter 
                 self.failed_attempts[username] = {'count': 1, 'last_attempt': now}
             else:
-                # Increment existing counter
+                # counter ++
                 self.failed_attempts[username]['count'] += 1
                 self.failed_attempts[username]['last_attempt'] = now
         else:
-            # First failed attempt for this user
             self.failed_attempts[username] = {'count': 1, 'last_attempt': now}
     
     def check_authorization(self, user_role: str, required_role: str) -> bool:
-        """Check if user has required authorization level"""
-        
-        # Define role hierarchy
         role_hierarchy = {
             'super_admin': 3,
             'system_admin': 2,
@@ -111,9 +97,7 @@ class AuthManager:
         
         return user_level >= required_level
     
-    def check_permission(self, user_role: str, action: str, resource: str = None) -> bool:
-        """Check specific permission for user role"""
-        
+    def check_permission(self, user_role: str, action: str, resource: str = None) -> bool:        
         permissions = {
             'super_admin': {
                 'create_user': ['system_admin', 'service_engineer'],
@@ -153,7 +137,7 @@ class AuthManager:
                 'update_password': 'self'
             },
             'service_engineer': {
-                'update_scooter': 'limited',  # Only certain attributes
+                'update_scooter': 'limited',
                 'search_scooter': True,
                 'update_password': 'self'
             }
@@ -162,9 +146,7 @@ class AuthManager:
         role_permissions = permissions.get(user_role, {})
         return role_permissions.get(action, False)
     
-    def get_scooter_update_permissions(self, user_role: str) -> Dict[str, bool]:
-        """Get which scooter attributes can be updated by user role"""
-        
+    def get_scooter_update_permissions(self, user_role: str) -> Dict[str, bool]:       
         if user_role in ['super_admin', 'system_admin']:
             return {
                 'brand': True,
@@ -201,16 +183,8 @@ class AuthManager:
             return {}
     
     def validate_session(self, username: str, role: str) -> bool:
-        """Validate if user session is still valid"""
-        # In a real application, this would check session tokens, timeouts, etc.
-        # For this assignment, we'll do a basic check
-        
         try:
-            # Verify user still exists and is active
             user_info = self.db_manager.authenticate_user(username, "dummy_password_for_check")
-            # We don't expect this to succeed, but it will verify user exists
-            
-            # Check if user exists in database (without password verification)
             conn = self.db_manager._get_connection()
             cursor = conn.cursor()
             cursor.execute('''
@@ -234,7 +208,6 @@ class AuthManager:
             return False
     
     def log_authorization_attempt(self, username: str, action: str, success: bool, details: str = ""):
-        """Log authorization attempts"""
         if success:
             self.logger.log_activity(
                 username,
@@ -250,7 +223,6 @@ class AuthManager:
             )
     
     def get_lockout_info(self, username: str) -> Optional[Dict[str, Any]]:
-        """Get lockout information for a user"""
         if username not in self.failed_attempts:
             return None
         
@@ -275,7 +247,6 @@ class AuthManager:
         }
     
     def clear_user_lockout(self, username: str, admin_username: str) -> bool:
-        """Manually clear user lockout (admin function)"""
         if username in self.failed_attempts:
             del self.failed_attempts[username]
             

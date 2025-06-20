@@ -7,7 +7,6 @@ import getpass
 from datetime import datetime
 from typing import Optional, Dict, Any, List, Tuple
 
-# Import system modules
 from database_manager import DatabaseManager
 from auth_manager import AuthManager
 from input_validator import InputValidator
@@ -16,48 +15,25 @@ from logger import SystemLogger
 from backup_manager import BackupManager
 from user_interface import UserInterface
 
-class UrbanMobilitySystem:
-    """Main system controller for Urban Mobility Backend"""
-    
+class UrbanMobilitySystem:   
     def __init__(self):
-        """Initialize the Urban Mobility System"""
         self.current_user = None
         self.user_role = None
         self.session_active = False
         self.failed_login_attempts = 0
         self.max_failed_attempts = 3
-        
-        # Initialize core components
         self._initialize_components()
         
     def _initialize_components(self):
-        """Initialize all system components"""
         try:
-            # Initialize crypto manager first (needed for encryption)
             self.crypto = CryptoManager()
-            
-            # Initialize logger
             self.logger = SystemLogger(self.crypto)
-            
-            # Initialize database manager
             self.db_manager = DatabaseManager(self.crypto, self.logger)
-            
-            # Initialize authentication manager
             self.auth_manager = AuthManager(self.db_manager, self.logger)
-            
-            # Initialize input validator
             self.validator = InputValidator()
-            
-            # Initialize backup manager
             self.backup_manager = BackupManager(self.db_manager, self.logger)
-            
-            # Initialize user interface
             self.ui = UserInterface()
-            
-            # Initialize database schema
             self.db_manager.initialize_database()
-            
-            # Log system startup
             self.logger.log_activity("SYSTEM", "System startup", "System initialized successfully")
             
         except Exception as e:
@@ -65,20 +41,15 @@ class UrbanMobilitySystem:
             sys.exit(1)
     
     def run(self):
-        """Main application loop"""
         self.ui.display_welcome()
         
         while True:
             try:
                 if not self.session_active:
-                    # Show login menu
                     if not self._handle_login():
                         continue
                 
-                # Check for suspicious activity alerts
                 self._check_suspicious_activity()
-                
-                # Show main menu based on user role
                 self._show_main_menu()
                 
             except KeyboardInterrupt:
@@ -95,7 +66,6 @@ class UrbanMobilitySystem:
                 print("Please try again or contact system administrator.")
     
     def _handle_login(self) -> bool:
-        """Handle user login process"""
         print("\n" + "="*50)
         print("           LOGIN REQUIRED")
         print("="*50)
@@ -115,8 +85,7 @@ class UrbanMobilitySystem:
         if not password:
             print("Password cannot be empty.")
             return False
-        
-        # Validate credentials
+
         user_info = self.auth_manager.authenticate_user(username, password)
         
         if user_info:
@@ -124,8 +93,7 @@ class UrbanMobilitySystem:
             self.user_role = user_info['role']
             self.session_active = True
             self.failed_login_attempts = 0
-            
-            # Log successful login
+
             self.logger.log_activity(username, "Logged in", "Successful login")
             
             print(f"\nWelcome, {user_info['first_name']} {user_info['last_name']}!")
@@ -134,8 +102,7 @@ class UrbanMobilitySystem:
         else:
             self.failed_login_attempts += 1
             print("Invalid username or password.")
-            
-            # Log failed login attempt
+
             self.logger.log_activity(
                 username,
                 "Failed login",
@@ -145,7 +112,6 @@ class UrbanMobilitySystem:
             return False
     
     def _handle_logout(self):
-        """Handle user logout"""
         if self.current_user:
             self.logger.log_activity(self.current_user, "Logged out", "User logged out")
             print(f"\nGoodbye, {self.current_user}!")
@@ -155,7 +121,6 @@ class UrbanMobilitySystem:
         self.session_active = False
     
     def _check_suspicious_activity(self):
-        """Check for and display suspicious activity alerts"""
         if self.user_role in ['super_admin', 'system_admin']:
             suspicious_count = self.logger.get_unread_suspicious_count()
             if suspicious_count > 0:
@@ -163,7 +128,6 @@ class UrbanMobilitySystem:
                 print("Use 'View Logs' option to review suspicious activities.")
     
     def _show_main_menu(self):
-        """Display main menu based on user role"""
         while self.session_active:
             try:
                 if self.user_role == 'super_admin':
@@ -186,7 +150,6 @@ class UrbanMobilitySystem:
                 break
     
     def _show_super_admin_menu(self) -> str:
-        """Show Super Administrator menu"""
         menu_options = [
             "1. User Management",
             "2. Traveller Management", 
@@ -229,7 +192,6 @@ class UrbanMobilitySystem:
         return 'continue'
     
     def _show_system_admin_menu(self) -> str:
-        """Show System Administrator menu"""
         menu_options = [
             "1. User Management (Service Engineers)",
             "2. Traveller Management",
@@ -275,7 +237,6 @@ class UrbanMobilitySystem:
         return 'continue'
     
     def _show_service_engineer_menu(self) -> str:
-        """Show Service Engineer menu"""
         menu_options = [
             "1. Update Scooter Information",
             "2. Search Scooter Information",
@@ -304,9 +265,8 @@ class UrbanMobilitySystem:
             print("Invalid choice. Please select 1-4.")
         
         return 'continue'
-      # Menu handler methods
+
     def _handle_user_management(self):
-        """Handle user management operations"""
         while True:
             options = [
                 "1. List All Users",
@@ -335,7 +295,6 @@ class UrbanMobilitySystem:
                 self.ui.display_message("Invalid choice. Please select 1-6.", "error")
     
     def _handle_traveller_management(self):
-        """Handle traveller management operations"""
         while True:
             options = [
                 "1. Add New Traveller",
@@ -361,7 +320,6 @@ class UrbanMobilitySystem:
                 self.ui.display_message("Invalid choice. Please select 1-5.", "error")
     
     def _handle_scooter_management(self):
-        """Handle scooter management operations"""
         while True:
             options = [
                 "1. Add New Scooter",
@@ -387,7 +345,6 @@ class UrbanMobilitySystem:
                 self.ui.display_message("Invalid choice. Please select 1-5.", "error")
     
     def _handle_system_administration(self):
-        """Handle system administration operations"""
         while True:
             options = [
                 "1. View System Information",
@@ -410,7 +367,6 @@ class UrbanMobilitySystem:
                 self.ui.display_message("Invalid choice. Please select 1-4.", "error")
     
     def _handle_backup_restore(self):
-        """Handle backup and restore operations"""
         while True:
             options = [
                 "1. Create Backup",
@@ -433,7 +389,6 @@ class UrbanMobilitySystem:
                 self.ui.display_message("Invalid choice. Please select 1-4.", "error")
     
     def _handle_view_logs(self):
-        """Handle viewing system logs"""
         while True:
             options = [
                 "1. View All Logs",
@@ -459,7 +414,6 @@ class UrbanMobilitySystem:
                 self.ui.display_message("Invalid choice. Please select 1-5.", "error")
     
     def _handle_restore_codes(self):
-        """Handle restore code generation"""
         while True:
             options = [
                 "1. Generate Restore Code",
@@ -482,16 +436,12 @@ class UrbanMobilitySystem:
                 self.ui.display_message("Invalid choice. Please select 1-4.", "error")
     
     def _handle_service_engineer_management(self):
-        """Handle service engineer management"""
-        # This redirects to the general user management with role filter
         self._handle_user_management()
     
     def _handle_backup_system(self):
-        """Handle system backup"""
         self._create_backup()
     
     def _handle_restore_with_code(self):
-        """Handle system restore with code"""
         restore_code = self.ui.get_input("Enter restore code", required=True)
         
         if self.ui.display_confirmation(f"Are you sure you want to restore the system using this code?"):
@@ -505,10 +455,8 @@ class UrbanMobilitySystem:
         self.ui.wait_for_enter()
     
     def _handle_update_password(self):
-        """Handle password update"""
         current_password = self.ui.get_input("Enter current password", "password", required=True)
         
-        # Verify current password
         user_info = self.db_manager.authenticate_user(self.current_user, current_password)
         if not user_info:
             self.ui.display_message("Current password is incorrect.", "error")
@@ -523,14 +471,12 @@ class UrbanMobilitySystem:
             self.ui.wait_for_enter()
             return
         
-        # Validate new password
         valid, msg = self.validator.validate_password(new_password)
         if not valid:
             self.ui.display_message(f"Invalid password: {msg}", "error")
             self.ui.wait_for_enter()
             return
         
-        # Update password
         if self.db_manager.update_user_password(self.current_user, new_password):
             self.ui.display_message("Password updated successfully.", "success")
         else:
@@ -539,8 +485,6 @@ class UrbanMobilitySystem:
         self.ui.wait_for_enter()
     
     def _handle_update_scooter(self):
-        """Handle scooter information update"""
-        # First, search for the scooter to update
         serial_number = self.ui.get_input("Enter scooter serial number", required=True)
         
         results = self.db_manager.search_scooters(serial_number)
@@ -549,19 +493,16 @@ class UrbanMobilitySystem:
             self.ui.wait_for_enter()
             return
         
-        scooter = results[0]  # Take first match
-        
-        # Show current information
+        scooter = results[0] 
+
         print(f"\nCurrent scooter information:")
         print(f"Serial: {scooter.get('serial_number')}")
         print(f"Brand/Model: {scooter.get('brand')} {scooter.get('model')}")
         print(f"Battery: {scooter.get('state_of_charge')}%")
         print(f"Location: {scooter.get('latitude')}, {scooter.get('longitude')}")
         
-        # Get permissions for this user role
         permissions = self.auth_manager.get_scooter_update_permissions(self.user_role)
         
-        # Show available fields to update
         updateable_fields = [k for k, v in permissions.items() if v]
         if not updateable_fields:
             self.ui.display_message("You don't have permission to update any scooter fields.", "error")
@@ -571,18 +512,14 @@ class UrbanMobilitySystem:
         print(f"\nYou can update the following fields:")
         for i, field in enumerate(updateable_fields, 1):
             print(f"{i}. {field.replace('_', ' ').title()}")
-        
-        # For now, just display the available options
+     
         self.ui.display_message("Scooter update functionality - Select field to update", "info")
         self.ui.wait_for_enter()
     
     def _handle_search_scooter(self):
-        """Handle scooter search"""
         self._search_scooters()
     
-    # Additional helper methods
     def _view_system_info(self):
-        """View system information"""
         info = [
             f"System: Urban Mobility Backend v1.0",
             f"Current User: {self.current_user}",
@@ -603,7 +540,6 @@ class UrbanMobilitySystem:
         self.ui.wait_for_enter()
     
     def _system_maintenance(self):
-        """System maintenance operations"""
         options = [
             "1. Clear Old Logs (90+ days)",
             "2. Database Statistics",
@@ -625,7 +561,6 @@ class UrbanMobilitySystem:
             self.ui.wait_for_enter()
     
     def _create_backup(self):
-        """Create system backup"""
         if self.ui.display_confirmation("Create a backup of the system?"):
             self.ui.display_progress("Creating backup")
             
@@ -638,7 +573,6 @@ class UrbanMobilitySystem:
         self.ui.wait_for_enter()
     
     def _list_backups(self):
-        """List available backups"""
         backups = self.backup_manager.list_backups()
         
         if backups:
@@ -649,7 +583,6 @@ class UrbanMobilitySystem:
         self.ui.wait_for_enter()
     
     def _restore_backup(self):
-        """Restore from backup"""
         if self.user_role != 'super_admin':
             self.ui.display_message("Only Super Administrator can restore backups directly.", "error")
             self.ui.wait_for_enter()
@@ -676,25 +609,20 @@ class UrbanMobilitySystem:
         self.ui.wait_for_enter()
     
     def _view_all_logs(self):
-        """View all system logs"""
         logs = self.logger.get_logs(limit=100)
         self.ui.display_logs(logs)
         
-        # Mark suspicious activities as read
         self.logger.mark_suspicious_as_read()
         self.ui.wait_for_enter()
     
     def _view_suspicious_logs(self):
-        """View suspicious activities"""
         logs = self.logger.get_logs(suspicious_only=True)
         self.ui.display_logs(logs, show_suspicious_only=True)
         
-        # Mark as read
         self.logger.mark_suspicious_as_read()
         self.ui.wait_for_enter()
     
     def _search_logs(self):
-        """Search system logs"""
         search_term = self.ui.get_input("Enter search term", required=True)
         
         logs = self.logger.search_logs(search_term)
@@ -704,7 +632,6 @@ class UrbanMobilitySystem:
         self.ui.wait_for_enter()
     
     def _export_logs(self):
-        """Export system logs"""
         filename = self.ui.get_input("Enter filename for export", required=False)
         if not filename:
             filename = f"system_logs_export_{datetime.now().strftime('%Y%m%d_%H%M%S')}.txt"
@@ -719,7 +646,6 @@ class UrbanMobilitySystem:
         self.ui.wait_for_enter()
     
     def _generate_restore_code(self):
-        """Generate restore code"""
         backups = self.backup_manager.list_backups()
         if not backups:
             self.ui.display_message("No backups available.", "info")
@@ -743,7 +669,6 @@ class UrbanMobilitySystem:
         self.ui.wait_for_enter()
     
     def _list_restore_codes(self):
-        """List restore codes"""
         codes = self.backup_manager.get_restore_codes()
         
         if codes:
@@ -754,7 +679,6 @@ class UrbanMobilitySystem:
         self.ui.wait_for_enter()
     
     def _revoke_restore_code(self):
-        """Revoke restore code"""
         restore_code = self.ui.get_input("Enter restore code to revoke", required=True)
         
         if self.ui.display_confirmation(f"Are you sure you want to revoke this restore code?"):
@@ -765,16 +689,13 @@ class UrbanMobilitySystem:
         
         self.ui.wait_for_enter()
     
-    # User management implementation methods
     def _update_user(self):
-        """Update user information"""
-        # Check permissions
         if not self.auth_manager.check_permission(self.user_role, 'update_user'):
             self.ui.display_message("You don't have permission to update users.", "error")
             self.ui.wait_for_enter()
             return
         
-        # Get list of users first
+        # Get list of users 
         if self.user_role == 'super_admin':
             users = self.db_manager.get_users()
         else:
@@ -784,8 +705,7 @@ class UrbanMobilitySystem:
             self.ui.display_message("No users found to update.", "info")
             self.ui.wait_for_enter()
             return
-        
-        # Display users
+    
         self.ui.display_search_results("SELECT USER TO UPDATE", users, "user")
         
         username = self.ui.get_input("Enter username to update", required=True)
@@ -802,7 +722,6 @@ class UrbanMobilitySystem:
             self.ui.wait_for_enter()
             return
         
-        # Get new information
         fields = [
             {'name': 'first_name', 'label': 'First Name', 'required': False},
             {'name': 'last_name', 'label': 'Last Name', 'required': False}
@@ -815,7 +734,6 @@ class UrbanMobilitySystem:
         
         update_data = self.ui.display_form("UPDATE USER INFORMATION", fields)
         
-        # Validate if provided
         if update_data['first_name']:
             valid, msg = self.validator.validate_name(update_data['first_name'], "First name")
             if not valid:
@@ -844,14 +762,11 @@ class UrbanMobilitySystem:
         self.ui.wait_for_enter()
     
     def _delete_user(self):
-        """Delete user account"""
-        # Check permissions
         if not self.auth_manager.check_permission(self.user_role, 'delete_user'):
             self.ui.display_message("You don't have permission to delete users.", "error")
             self.ui.wait_for_enter()
             return
-        
-        # Get list of users
+
         if self.user_role == 'super_admin':
             users = self.db_manager.get_users()
         else:
@@ -873,20 +788,16 @@ class UrbanMobilitySystem:
             self.ui.wait_for_enter()
             return
         
-        # Prevent self-deletion by system admin
         if username.lower() == self.current_user.lower() and self.user_role == 'system_admin':
-            # Allow but with extra confirmation
             if not self.ui.display_confirmation("You are about to delete your own account. This will log you out immediately. Are you sure?"):
                 return
         
-        # Find user to verify exists
         user_exists = any(user['username'].lower() == username.lower() for user in users)
         if not user_exists:
             self.ui.display_message("User not found.", "error")
             self.ui.wait_for_enter()
             return
         
-        # Confirm deletion
         if self.ui.display_confirmation(f"Are you sure you want to delete user '{username}'? This cannot be undone."):
             if self.db_manager.delete_user(username):
                 self.ui.display_message(f"User '{username}' deleted successfully.", "success")
@@ -896,7 +807,6 @@ class UrbanMobilitySystem:
                     f"Deleted user account: {username}"
                 )
                 
-                # If user deleted themselves, logout
                 if username.lower() == self.current_user.lower():
                     self.ui.display_message("You have deleted your own account. Logging out...", "warning")
                     self.ui.wait_for_enter()
@@ -908,14 +818,11 @@ class UrbanMobilitySystem:
         self.ui.wait_for_enter()
     
     def _reset_user_password(self):
-        """Reset user password"""
-        # Check permissions
         if not self.auth_manager.check_permission(self.user_role, 'reset_password'):
             self.ui.display_message("You don't have permission to reset passwords.", "error")
             self.ui.wait_for_enter()
             return
         
-        # Get list of users
         if self.user_role == 'super_admin':
             users = self.db_manager.get_users()
         else:
@@ -926,19 +833,16 @@ class UrbanMobilitySystem:
             self.ui.wait_for_enter()
             return
         
-        # Display users
         self.ui.display_search_results("SELECT USER FOR PASSWORD RESET", users, "user")
         
         username = self.ui.get_input("Enter username for password reset", required=True)
         
-        # Find user to verify exists
         user_exists = any(user['username'].lower() == username.lower() for user in users)
         if not user_exists:
             self.ui.display_message("User not found.", "error")
             self.ui.wait_for_enter()
             return
         
-        # Get new password
         new_password = self.ui.get_input("Enter new temporary password", "password", required=True)
         confirm_password = self.ui.get_input("Confirm new password", "password", required=True)
         
@@ -947,14 +851,12 @@ class UrbanMobilitySystem:
             self.ui.wait_for_enter()
             return
         
-        # Validate password
         valid, msg = self.validator.validate_password(new_password)
         if not valid:
             self.ui.display_message(f"Invalid password: {msg}", "error")
             self.ui.wait_for_enter()
             return
         
-        # Confirm reset
         if self.ui.display_confirmation(f"Reset password for user '{username}'?"):
             if self.db_manager.update_user_password(username, new_password):
                 self.ui.display_message(f"Password reset successfully for '{username}'.", "success")
@@ -971,14 +873,10 @@ class UrbanMobilitySystem:
         
         self.ui.wait_for_enter()
     def _update_traveller(self):
-        """Update traveller information"""
-        # Check permissions
         if not self.auth_manager.check_permission(self.user_role, 'update_traveller'):
             self.ui.display_message("You don't have permission to update travellers.", "error")
             self.ui.wait_for_enter()
-            return
-        
-        # First search for the traveller
+
         search_term = self.ui.get_input("Enter customer ID or name to find traveller", required=True)
         
         results = self.db_manager.search_travellers(search_term)
@@ -987,12 +885,10 @@ class UrbanMobilitySystem:
             self.ui.wait_for_enter()
             return
         
-        # Show results and let user pick
         if len(results) > 1:
             self.ui.display_search_results("FOUND TRAVELLERS", results, "traveller")
             customer_id = self.ui.get_input("Enter customer ID to update", required=True)
             
-            # Find the specific traveller
             traveller = None
             for result in results:
                 if result['customer_id'] == customer_id:
@@ -1013,7 +909,6 @@ class UrbanMobilitySystem:
         print(f"Email: {traveller.get('email_address')}")
         print(f"Phone: +31-6-{traveller.get('mobile_phone')}")
         
-        # Get updated information (allow empty to keep current)
         fields = [
             {'name': 'first_name', 'label': f"First Name (current: {traveller.get('first_name')})", 'required': False},
             {'name': 'last_name', 'label': f"Last Name (current: {traveller.get('last_name')})", 'required': False},
@@ -1023,10 +918,9 @@ class UrbanMobilitySystem:
         
         updated_data = self.ui.display_form("UPDATE TRAVELLER (leave empty to keep current)", fields)
         
-        # Only update fields that have new values
         update_fields = {}
         for field, value in updated_data.items():
-            if value:  # Only if user entered something
+            if value:
                 update_fields[field] = value
         
         if not update_fields:
@@ -1034,7 +928,6 @@ class UrbanMobilitySystem:
             self.ui.wait_for_enter()
             return
         
-        # Validate new values
         for field, value in update_fields.items():
             if field in ['first_name', 'last_name']:
                 valid, msg = self.validator.validate_name(value, field.replace('_', ' ').title())
@@ -1064,14 +957,12 @@ class UrbanMobilitySystem:
         self.ui.wait_for_enter()
     
     def _delete_traveller(self):
-        """Delete traveller record"""
-        # Check permissions
+
         if not self.auth_manager.check_permission(self.user_role, 'delete_traveller'):
             self.ui.display_message("You don't have permission to delete travellers.", "error")
             self.ui.wait_for_enter()
             return
         
-        # Search for traveller
         search_term = self.ui.get_input("Enter customer ID or name to find traveller", required=True)
         
         results = self.db_manager.search_travellers(search_term)
@@ -1080,7 +971,6 @@ class UrbanMobilitySystem:
             self.ui.wait_for_enter()
             return
         
-        # Show results
         self.ui.display_search_results("FOUND TRAVELLERS", results, "traveller")
         
         customer_id = self.ui.get_input("Enter customer ID to delete", required=True)
@@ -1097,14 +987,12 @@ class UrbanMobilitySystem:
             self.ui.wait_for_enter()
             return
         
-        # Confirmation
         traveller_name = f"{traveller.get('first_name')} {traveller.get('last_name')}"
         if not self.ui.display_confirmation(f"Are you sure you want to delete traveller {traveller_name} (ID: {customer_id})?"):
             self.ui.display_message("Deletion cancelled.", "info")
             self.ui.wait_for_enter()
             return
         
-        # Delete from database
         if self.db_manager.delete_traveller(customer_id):
             self.ui.display_message("Traveller deleted successfully.", "success")
             self.logger.log_activity(
@@ -1116,9 +1004,8 @@ class UrbanMobilitySystem:
             self.ui.display_message("Failed to delete traveller.", "error")
         
         self.ui.wait_for_enter()
+
     def _update_scooter(self):
-        """Update scooter information"""
-        # Check permissions
         if not self.auth_manager.check_permission(self.user_role, 'update_scooter'):
             self.ui.display_message("You don't have permission to update scooters.", "error")
             self.ui.wait_for_enter()
@@ -1151,11 +1038,9 @@ class UrbanMobilitySystem:
                 return
         else:
             scooter = results[0]
-        
-        # Get permissions for this user role
+        e
         permissions = self.auth_manager.get_scooter_update_permissions(self.user_role)
         
-        # Show current information and available fields
         print(f"\nCurrent scooter information:")
         print(f"Serial: {scooter.get('serial_number')}")
         print(f"Brand/Model: {scooter.get('brand')} {scooter.get('model')}")
@@ -1163,7 +1048,6 @@ class UrbanMobilitySystem:
         print(f"Location: {scooter.get('latitude')}, {scooter.get('longitude')}")
         print(f"Status: {'Out of Service' if scooter.get('out_of_service_status') else 'In Service'}")
         
-        # Create fields list based on permissions
         fields = []
         if permissions.get('state_of_charge'):
             fields.append({
@@ -1218,14 +1102,11 @@ class UrbanMobilitySystem:
             self.ui.display_message("You don't have permission to update any scooter fields.", "error")
             self.ui.wait_for_enter()
             return
-        
-        # Get updated information
+
         updated_data = self.ui.display_form("UPDATE SCOOTER (leave empty to keep current)", fields)
-        
-        # Only update fields that have new values
         update_fields = {}
         for field, value in updated_data.items():
-            if value:  # Only if user entered something
+            if value: 
                 if field == 'out_of_service_status':
                     update_fields[field] = 1 if value == 'Out of Service' else 0
                 else:
@@ -1236,7 +1117,6 @@ class UrbanMobilitySystem:
             self.ui.wait_for_enter()
             return
         
-        # Validate new values
         for field, value in update_fields.items():
             if field == 'state_of_charge':
                 valid, msg = self.validator.validate_percentage(str(value), "State of charge")
@@ -1259,7 +1139,6 @@ class UrbanMobilitySystem:
                 self.ui.wait_for_enter()
                 return
         
-        # Convert numeric values
         try:
             for field in ['state_of_charge', 'latitude', 'longitude', 'mileage']:
                 if field in update_fields:
@@ -1269,7 +1148,6 @@ class UrbanMobilitySystem:
             self.ui.wait_for_enter()
             return
         
-        # Update in database
         if self.db_manager.update_scooter(scooter['serial_number'], update_fields):
             self.ui.display_message("Scooter updated successfully.", "success")
             self.logger.log_activity(
@@ -1283,8 +1161,6 @@ class UrbanMobilitySystem:
         self.ui.wait_for_enter()
     
     def _delete_scooter(self):
-        """Delete scooter record"""
-        # Check permissions
         if not self.auth_manager.check_permission(self.user_role, 'delete_scooter'):
             self.ui.display_message("You don't have permission to delete scooters.", "error")
             self.ui.wait_for_enter()
@@ -1299,7 +1175,6 @@ class UrbanMobilitySystem:
             self.ui.wait_for_enter()
             return
         
-        # Show results
         self.ui.display_search_results("FOUND SCOOTERS", results, "scooter")
         
         serial_number = self.ui.get_input("Enter serial number to delete", required=True)
@@ -1316,7 +1191,6 @@ class UrbanMobilitySystem:
             self.ui.wait_for_enter()
             return
         
-        # Confirmation
         scooter_info = f"{scooter.get('brand')} {scooter.get('model')} (Serial: {serial_number})"
         if not self.ui.display_confirmation(f"Are you sure you want to delete scooter {scooter_info}?"):
             self.ui.display_message("Deletion cancelled.", "info")
@@ -1335,10 +1209,8 @@ class UrbanMobilitySystem:
             self.ui.display_message("Failed to delete scooter.", "error")
         
         self.ui.wait_for_enter()
-    
-    # Implementation methods for user management
+
     def _list_users(self):
-        """List all users"""
         users = self.db_manager.get_users()
         if users:
             headers = ["Username", "Role", "Name", "Status", "Registered"]
@@ -1351,7 +1223,7 @@ class UrbanMobilitySystem:
                     user.get('role', ''),
                     name,
                     status,
-                    user.get('registration_date', '')[:10]  # Just date part
+                    user.get('registration_date', '')[:10]  
                 ])
             self.ui.display_table("SYSTEM USERS", headers, rows)
         else:
@@ -1360,8 +1232,6 @@ class UrbanMobilitySystem:
         self.ui.wait_for_enter()
     
     def _create_user(self):
-        """Create a new user"""
-        # Check permissions
         if self.user_role == 'super_admin':
             role_choices = ['system_admin', 'service_engineer']
         elif self.user_role == 'system_admin':
@@ -1371,7 +1241,6 @@ class UrbanMobilitySystem:
             self.ui.wait_for_enter()
             return
         
-        # Get user data
         fields = [
             {'name': 'username', 'label': 'Username', 'help': '8-10 chars, start with letter/underscore'},
             {'name': 'password', 'label': 'Password', 'type': 'password', 'help': '12-30 chars, mixed case, digits, special chars'},
@@ -1382,7 +1251,6 @@ class UrbanMobilitySystem:
         
         user_data = self.ui.display_form("CREATE NEW USER", fields)
         
-        # Validate input
         valid, msg = self.validator.validate_username(user_data['username'])
         if not valid:
             self.ui.display_message(f"Invalid username: {msg}", "error")
@@ -1427,8 +1295,6 @@ class UrbanMobilitySystem:
         self.ui.wait_for_enter()
     
     def _add_traveller(self):
-        """Add a new traveller"""
-        # Check permissions
         if not self.auth_manager.check_permission(self.user_role, 'create_traveller'):
             self.ui.display_message("You don't have permission to add travellers.", "error")
             self.ui.wait_for_enter()
@@ -1450,7 +1316,6 @@ class UrbanMobilitySystem:
         
         traveller_data = self.ui.display_form("ADD NEW TRAVELLER", fields)
         
-        # Validate all inputs
         validations = [
             self.validator.validate_name(traveller_data['first_name'], "First name"),
             self.validator.validate_name(traveller_data['last_name'], "Last name"),
@@ -1486,7 +1351,6 @@ class UrbanMobilitySystem:
         self.ui.wait_for_enter()
     
     def _search_travellers(self):
-        """Search for travellers"""
         search_term = self.ui.get_input("Enter search term (name, customer ID, email, phone)", required=True)
         
         valid, msg = self.validator.validate_search_term(search_term)
@@ -1501,8 +1365,6 @@ class UrbanMobilitySystem:
         self.ui.wait_for_enter()
     
     def _add_scooter(self):
-        """Add a new scooter"""
-        # Check permissions
         if not self.auth_manager.check_permission(self.user_role, 'create_scooter'):
             self.ui.display_message("You don't have permission to add scooters.", "error")
             self.ui.wait_for_enter()
@@ -1525,7 +1387,6 @@ class UrbanMobilitySystem:
         
         scooter_data = self.ui.display_form("ADD NEW SCOOTER", fields)
         
-        # Validate inputs
         validations = [
             self.validator.validate_name(scooter_data['brand'], "Brand"),
             self.validator.validate_name(scooter_data['model'], "Model"),
@@ -1550,7 +1411,6 @@ class UrbanMobilitySystem:
                 self.ui.wait_for_enter()
                 return
         
-        # Convert numeric values
         try:
             numeric_data = {
                 'brand': scooter_data['brand'],
@@ -1585,7 +1445,6 @@ class UrbanMobilitySystem:
         self.ui.wait_for_enter()
     
     def _search_scooters(self):
-        """Search for scooters"""
         search_term = self.ui.get_input("Enter search term (brand, model, serial number)", required=True)
         
         valid, msg = self.validator.validate_search_term(search_term)
@@ -1600,28 +1459,22 @@ class UrbanMobilitySystem:
         self.ui.wait_for_enter()
     
     def _show_database_statistics(self):
-        """Show database statistics"""
         try:
             conn = self.db_manager._get_connection()
             cursor = conn.cursor()
             
-            # Get user count by role
             cursor.execute("SELECT role, COUNT(*) FROM users WHERE is_active = 1 GROUP BY role")
             user_stats = cursor.fetchall()
             
-            # Get total traveller count
             cursor.execute("SELECT COUNT(*) FROM travellers")
             traveller_count = cursor.fetchone()[0]
             
-            # Get total scooter count
             cursor.execute("SELECT COUNT(*) FROM scooters")
             scooter_count = cursor.fetchone()[0]
             
-            # Get scooters by service status
             cursor.execute("SELECT out_of_service_status, COUNT(*) FROM scooters GROUP BY out_of_service_status")
             scooter_status = cursor.fetchall()
             
-            # Get restore codes count
             cursor.execute("SELECT is_used, COUNT(*) FROM restore_codes GROUP BY is_used")
             restore_codes = cursor.fetchall()
             
@@ -1647,7 +1500,6 @@ class UrbanMobilitySystem:
                 status_text = "Used" if used else "Active"
                 print(f"  {status_text}: {count}")
             
-            # Get log statistics
             logs = self.logger.get_logs()
             suspicious_logs = [log for log in logs if log.get('suspicious', False)]
             

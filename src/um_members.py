@@ -5,7 +5,6 @@ import os
 from urban_mobility_system import UrbanMobilitySystem
 
 def main():
-    """Main entry point for the Urban Mobility Backend System"""
     print("=" * 60)
     print("    URBAN MOBILITY BACKEND SYSTEM")
     print("    Secure Management Console")
@@ -13,10 +12,7 @@ def main():
     print()
     
     try:
-        # Initialize the system
         system = UrbanMobilitySystem()
-        
-        # Start the main application loop
         system.run()
         
     except KeyboardInterrupt:

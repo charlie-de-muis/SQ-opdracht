@@ -6,11 +6,8 @@ import json
 from datetime import datetime
 from typing import Optional, List, Dict, Any, Tuple
 
-class DatabaseManager:
-    """Manages all database operations with security features"""
-    
+class DatabaseManager:   
     def __init__(self, crypto_manager, logger):
-        """Initialize the database manager"""
         self.crypto = crypto_manager
         self.logger = logger
         # Ensure database file is always created in src directory
@@ -19,18 +16,14 @@ class DatabaseManager:
         self.connection = None
         
     def _get_connection(self) -> sqlite3.Connection:
-        """Get database connection with security settings"""
         if self.connection is None:
             self.connection = sqlite3.connect(self.db_file, check_same_thread=False)
-            self.connection.row_factory = sqlite3.Row  # Enable column access by name
-            
-            # Enable foreign key constraints
+            self.connection.row_factory = sqlite3.Row  
             self.connection.execute("PRAGMA foreign_keys = ON")
             
         return self.connection
     
     def initialize_database(self):
-        """Initialize database schema"""
         conn = self._get_connection()
         cursor = conn.cursor()
         
@@ -111,16 +104,13 @@ class DatabaseManager:
                 )
             ''')
             
-            # Create indexes for better performance
             cursor.execute('CREATE INDEX IF NOT EXISTS idx_users_username ON users(username)')
             cursor.execute('CREATE INDEX IF NOT EXISTS idx_users_role ON users(role)')
             cursor.execute('CREATE INDEX IF NOT EXISTS idx_travellers_customer_id ON travellers(customer_id)')
             cursor.execute('CREATE INDEX IF NOT EXISTS idx_scooters_serial_number ON scooters(serial_number)')
             cursor.execute('CREATE INDEX IF NOT EXISTS idx_restore_codes_code ON restore_codes(code)')
             
-            # Initialize super admin account if it doesn't exist
             self._create_super_admin()
-            
             conn.commit()
             self.logger.log_activity("SYSTEM", "Database initialized", "Database schema created/updated")
             
@@ -130,17 +120,14 @@ class DatabaseManager:
             raise
     
     def _create_super_admin(self):
-        """Create the hard-coded super admin account"""
         conn = self._get_connection()
         cursor = conn.cursor()
         
         try:
-            # Check if super admin exists
             cursor.execute("SELECT id FROM users WHERE username = ?", ("super_admin",))
             if cursor.fetchone():
-                return  # Super admin already exists
+                return  
             
-            # Create super admin account
             password_hash = self.crypto.hash_password("Admin_123?")
             
             cursor.execute('''
@@ -164,15 +151,11 @@ class DatabaseManager:
             raise
     
     def create_user(self, username: str, password: str, role: str, first_name: str, last_name: str) -> bool:
-        """Create a new user account"""
         conn = self._get_connection()
         cursor = conn.cursor()
         
         try:
-            # Hash password
             password_hash = self.crypto.hash_password(password)
-            
-            # Encrypt sensitive data
             encrypted_first_name = self.crypto.encrypt(first_name)
             encrypted_last_name = self.crypto.encrypt(last_name)
             
@@ -201,7 +184,6 @@ class DatabaseManager:
             raise
     
     def authenticate_user(self, username: str, password: str) -> Optional[Dict[str, Any]]:
-        """Authenticate user credentials"""
         conn = self._get_connection()
         cursor = conn.cursor()
         
@@ -216,16 +198,13 @@ class DatabaseManager:
             if not user_row:
                 return None
             
-            # Verify password
             if not self.crypto.verify_password(password, user_row['password_hash']):
                 return None
-            
-            # Decrypt sensitive data
+
             try:
                 first_name = self.crypto.decrypt(user_row['first_name'])
                 last_name = self.crypto.decrypt(user_row['last_name'])
             except:
-                # Fallback for unencrypted data (backward compatibility)
                 first_name = user_row['first_name']
                 last_name = user_row['last_name']
             
@@ -241,7 +220,6 @@ class DatabaseManager:
             return None
     
     def get_users(self, role_filter: Optional[str] = None) -> List[Dict[str, Any]]:
-        """Get list of users (excluding super_admin)"""
         conn = self._get_connection()
         cursor = conn.cursor()
         
@@ -264,11 +242,9 @@ class DatabaseManager:
             users = []
             for row in cursor.fetchall():
                 try:
-                    # Decrypt sensitive data
                     first_name = self.crypto.decrypt(row['first_name'])
                     last_name = self.crypto.decrypt(row['last_name'])
                 except:
-                    # Fallback for unencrypted data
                     first_name = row['first_name']
                     last_name = row['last_name']
                 
@@ -288,7 +264,6 @@ class DatabaseManager:
             return []
     
     def update_user_password(self, username: str, new_password: str) -> bool:
-        """Update user password"""
         conn = self._get_connection()
         cursor = conn.cursor()
         
@@ -314,7 +289,6 @@ class DatabaseManager:
             return False
     
     def delete_user(self, username: str) -> bool:
-        """Delete user account (soft delete by setting is_active to 0)"""
         conn = self._get_connection()
         cursor = conn.cursor()
         
@@ -338,15 +312,13 @@ class DatabaseManager:
             return False
     
     def create_traveller(self, traveller_data: Dict[str, str]) -> Optional[str]:
-        """Create a new traveller record"""
         conn = self._get_connection()
         cursor = conn.cursor()
         
         try:
-            # Generate unique customer ID
+            # Generate customer ID
             customer_id = self._generate_customer_id()
             
-            # Encrypt sensitive data
             encrypted_data = {}
             sensitive_fields = ['first_name', 'last_name', 'street_name', 'house_number', 
                               'zip_code', 'email_address', 'mobile_phone', 'driving_license_number']
@@ -386,12 +358,10 @@ class DatabaseManager:
             return None
     
     def _generate_customer_id(self) -> str:
-        """Generate unique customer ID"""
         import random
         while True:
             customer_id = str(random.randint(1000000000, 9999999999))
             
-            # Check if ID already exists
             conn = self._get_connection()
             cursor = conn.cursor()
             cursor.execute("SELECT id FROM travellers WHERE customer_id = ?", (customer_id,))
@@ -400,7 +370,6 @@ class DatabaseManager:
                 return customer_id
     
     def search_travellers(self, search_term: str) -> List[Dict[str, Any]]:
-        """Search travellers by partial match"""
         conn = self._get_connection()
         cursor = conn.cursor()
         
@@ -416,13 +385,11 @@ class DatabaseManager:
             
             for row in cursor.fetchall():
                 try:
-                    # Decrypt sensitive data
                     first_name = self.crypto.decrypt(row['first_name'])
                     last_name = self.crypto.decrypt(row['last_name'])
                     email = self.crypto.decrypt(row['email_address'])
                     phone = self.crypto.decrypt(row['mobile_phone'])
                     
-                    # Check if search term matches
                     full_name = f"{first_name} {last_name}".lower()
                     customer_id = row['customer_id']
                     
@@ -441,7 +408,6 @@ class DatabaseManager:
                         })
                         
                 except Exception:
-                    # Skip records with decryption issues
                     continue
             
             return travellers
@@ -451,7 +417,6 @@ class DatabaseManager:
             return []
     
     def create_scooter(self, scooter_data: Dict[str, Any]) -> bool:
-        """Create a new scooter record"""
         conn = self._get_connection()
         cursor = conn.cursor()
         
@@ -493,7 +458,6 @@ class DatabaseManager:
             return False
     
     def search_scooters(self, search_term: str) -> List[Dict[str, Any]]:
-        """Search scooters by partial match"""
         conn = self._get_connection()
         cursor = conn.cursor()
         
@@ -516,12 +480,10 @@ class DatabaseManager:
             return []
     
     def update_user_info(self, username: str, update_data: Dict[str, str]) -> bool:
-        """Update user information (first name, last name)"""
         conn = self._get_connection()
         cursor = conn.cursor()
         
         try:
-            # Build update query dynamically based on provided data
             updates = []
             params = []
             
@@ -534,7 +496,7 @@ class DatabaseManager:
                 params.append(self.crypto.encrypt(update_data['last_name']))
             
             if not updates:
-                return True  # Nothing to update
+                return True 
             
             updates.append("updated_at = CURRENT_TIMESTAMP")
             params.append(username)
@@ -560,7 +522,6 @@ class DatabaseManager:
             return False
     
     def close_connection(self):
-        """Close database connection"""
         if self.connection:
             self.connection.close()
             self.connection = None
